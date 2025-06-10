@@ -46,6 +46,33 @@ func (h *StoreHandler) CreateStore(c *gin.Context) {
 	security.SendEncryptedResponse(c, http.StatusCreated, store)
 }
 
+// CreateStoreWithWifi 同时创建门店和WIFI配置
+// @Summary 新增门店及WIFI
+// @Description 在一个事务中同时创建门店及其初始WIFI配置
+// @Tags Stores
+// @Accept  json
+// @Produce  json
+// @Param   store_with_wifi body service.CreateStoreWithWifiInput true "门店及WIFI配置信息"
+// @Success 201 {object} models.Store
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /stores/with-wifi [post]
+func (h *StoreHandler) CreateStoreWithWifi(c *gin.Context) {
+	var input service.CreateStoreWithWifiInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "无效的请求数据: " + err.Error()})
+		return
+	}
+
+	store, err := h.service.CreateStoreWithWifi(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, gin.H{"error": "创建失败: " + err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusCreated, store)
+}
+
 // GetStore
 // @Summary 查询门店详情
 // @Produce json
@@ -74,21 +101,32 @@ func (h *StoreHandler) GetStore(c *gin.Context) {
 
 // GetStores
 // @Summary 查询门店列表
-// @Produce json
+// @Description 支持分页、按区域筛选（province, city, district）和查询附近门店（lat, lng, radius）
+// @Tags Stores
+// @Accept  json
+// @Produce  json
 // @Param page query int false "页码"
 // @Param pageSize query int false "每页数量"
-// @Success 200 {object} gin.H{"stores": []models.Store, "total": int64}
+// @Param province query string false "省份"
+// @Param city query string false "城市"
+// @Param district query string false "区/县"
+// @Param lat query number false "纬度"
+// @Param lng query number false "经度"
+// @Param radius query number false "半径（公里）"
+// @Success 200 {object} object{stores=[]models.Store, total=int64}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
 // @Router /stores [get]
 func (h *StoreHandler) GetStores(c *gin.Context) {
-	var input service.GetStoresPaginatorInput
+	var input service.GetStoresInput
 	if err := c.ShouldBindQuery(&input); err != nil {
-		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: err.Error()})
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "无效的查询参数: " + err.Error()})
 		return
 	}
 
 	stores, total, err := h.service.GetStores(&input)
 	if err != nil {
-		security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, gin.H{"error": "获取门店列表失败: " + err.Error()})
 		return
 	}
 

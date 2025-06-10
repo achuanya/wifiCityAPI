@@ -153,3 +153,35 @@ func (h *WifiConfigHandler) DeleteWifiConfig(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
+// CreateBatchWifiConfigs 批量创建WIFI配置
+// @Summary 批量新增WIFI配置
+// @Description 一次性为门店添加多个WIFI配置
+// @Tags WifiConfigs
+// @Accept  json
+// @Produce  json
+// @Param   configs body []service.CreateWifiConfigInput true "WIFI配置数组"
+// @Success 201 {object} object{configs=[]models.WifiConfig}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /wifi-configs/batch [post]
+func (h *WifiConfigHandler) CreateBatchWifiConfigs(c *gin.Context) {
+	var inputs []*service.CreateWifiConfigInput
+	if err := c.ShouldBindJSON(&inputs); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "无效的请求数据: " + err.Error()})
+		return
+	}
+
+	if len(inputs) == 0 {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "请求体不能为空数组"})
+		return
+	}
+
+	createdConfigs, err := h.service.CreateBatchWifiConfigs(inputs)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, gin.H{"error": "批量创建失败: " + err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusCreated, gin.H{"configs": createdConfigs})
+}

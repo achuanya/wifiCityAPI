@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin/wifiCityAPI/internal/models"
 	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CouponLogService 提供了优惠券日志相关的业务逻辑
@@ -22,16 +26,24 @@ type LogActionInput struct {
 	Remark         string   `json:"remark"`
 }
 
-// CreateCouponLog 在数据库中创建一条新的优惠券日志。
-// 它在一个事务中完成此操作，并在某些情况下（如"使用"和"退款"）更新优惠券的已发行数量。
+// CreateCouponLog 创建优惠券日志，并根据操作类型执行特定逻辑
 func (s *CouponLogService) CreateCouponLog(input *LogActionInput) (*models.CouponLog, error) {
+	// 对于"领取"操作，需要执行特殊逻辑并使用事务
+	if input.ActionType == "RECEIVE" {
+		return s.receiveCoupon(input)
+	}
+
+	// 对于其他操作类型 (ISSUE, USE, EXPIRE, REFUND)，暂时只记录日志
 	log := models.CouponLog{
-		CouponID:    input.CouponID,
-		UserUnionID: input.UserUnionID,
-		StoreID:     input.StoreID,
-		ActionType:  input.ActionType,
-		Remark:      input.Remark,
-		Status:      1, // 默认成功
+		CouponID:       input.CouponID,
+		UserUnionID:    input.UserUnionID,
+		StoreID:        input.StoreID,
+		ActionType:     input.ActionType,
+		ActionTime:     time.Now(), // 记录当前时间
+		OrderID:        "",         // 可根据需要从 input 赋值
+		AmountDeducted: 0,          // 可根据需要从 input 赋值
+		Status:         1,          // 默认为成功
+		Remark:         input.Remark,
 	}
 	if input.OrderID != nil {
 		log.OrderID = *input.OrderID
@@ -40,36 +52,82 @@ func (s *CouponLogService) CreateCouponLog(input *LogActionInput) (*models.Coupo
 		log.AmountDeducted = *input.AmountDeducted
 	}
 
+	if err := database.DB.Create(&log).Error; err != nil {
+		return nil, fmt.Errorf("创建优惠券日志失败: %w", err)
+	}
+
+	return &log, nil
+}
+
+// receiveCoupon 处理用户领取优惠券的逻辑
+func (s *CouponLogService) receiveCoupon(input *LogActionInput) (*models.CouponLog, error) {
+	var log *models.CouponLog
+
+	// 使用 GORM 的事务来确保数据一致性
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		// 1. 创建日志记录
-		if err := tx.Create(&log).Error; err != nil {
-			return err
+		var coupon models.Coupon
+		var userLogCount int64
+
+		// 1. 锁定并查找优惠券信息
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&coupon, input.CouponID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("优惠券不存在")
+			}
+			return fmt.Errorf("查询优惠券失败: %w", err)
 		}
 
-		// 2. 根据行为类型，可能需要更新 `coupon` 表的统计数据
-		switch input.ActionType {
-		case "RECEIVE":
-			// 每领取一张，已发行数量 +1
-			return tx.Model(&models.Coupon{}).Where("coupon_id = ?", input.CouponID).
-				UpdateColumn("issued_quantity", gorm.Expr("issued_quantity + ?", 1)).Error
-		case "USE":
-			// "使用"通常意味着已经领取，所以这里不增减 issued_quantity。
-			// 具体的核销逻辑可能更复杂，取决于业务需求。
-			// 这里仅作示例。
-		case "REFUND":
-			// 如果是"退券"，已发行数量 -1
-			return tx.Model(&models.Coupon{}).Where("coupon_id = ?", input.CouponID).
-				UpdateColumn("issued_quantity", gorm.Expr("issued_quantity - ?", 1)).Error
+		// 2. 校验优惠券状态和有效期
+		if coupon.Status != 1 {
+			return errors.New("优惠券已禁用")
+		}
+		now := time.Now()
+		if now.Before(coupon.StartTime) || now.After(coupon.EndTime) {
+			return errors.New("优惠券不在可用时间内")
 		}
 
-		// 对于其他 action_type，不执行额外操作
+		// 3. 校验库存
+		if coupon.TotalQuantity > 0 && coupon.IssuedQuantity >= coupon.TotalQuantity {
+			return errors.New("优惠券已领完")
+		}
+
+		// 4. 校验用户领取限制
+		if coupon.UsageLimitPerUser > 0 {
+			tx.Model(&models.CouponLog{}).
+				Where("user_union_id = ? AND coupon_id = ? AND action_type = 'RECEIVE' AND status = 1", input.UserUnionID, input.CouponID).
+				Count(&userLogCount)
+			if userLogCount >= int64(coupon.UsageLimitPerUser) {
+				return errors.New("已达到该优惠券的领取上限")
+			}
+		}
+
+		// 5. 创建领取日志
+		log = &models.CouponLog{
+			CouponID:    input.CouponID,
+			UserUnionID: input.UserUnionID,
+			StoreID:     input.StoreID,
+			ActionType:  "RECEIVE",
+			ActionTime:  now,
+			Status:      1,
+			Remark:      "用户成功领取",
+		}
+		if err := tx.Create(log).Error; err != nil {
+			return fmt.Errorf("创建领取日志失败: %w", err)
+		}
+
+		// 6. 更新优惠券已发行数量
+		coupon.IssuedQuantity++
+		if err := tx.Save(&coupon).Error; err != nil {
+			return fmt.Errorf("更新优惠券数量失败: %w", err)
+		}
+
 		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &log, nil
+
+	return log, nil
 }
 
 // GetCouponLogsInput 定义了查询优惠券日志的输入

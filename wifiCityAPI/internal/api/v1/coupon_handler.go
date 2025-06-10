@@ -46,6 +46,38 @@ func (h *CouponHandler) CreateCoupon(c *gin.Context) {
 	security.SendEncryptedResponse(c, http.StatusCreated, coupon)
 }
 
+// CreateBatchCoupons 批量创建优惠券
+// @Summary 批量创建优惠券
+// @Description 一次性创建多个优惠券
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param   coupons body []service.CreateCouponInput true "优惠券数组"
+// @Success 201 {object} object{coupons=[]models.Coupon}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/batch [post]
+func (h *CouponHandler) CreateBatchCoupons(c *gin.Context) {
+	var inputs []*service.CreateCouponInput
+	if err := c.ShouldBindJSON(&inputs); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "无效的请求数据: " + err.Error()})
+		return
+	}
+
+	if len(inputs) == 0 {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "请求体不能为空数组"})
+		return
+	}
+
+	createdCoupons, err := h.service.CreateBatchCoupons(inputs)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, gin.H{"error": "批量创建失败: " + err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusCreated, gin.H{"coupons": createdCoupons})
+}
+
 // GetCoupon
 // @Summary 查询优惠券详情
 // @Produce json
@@ -158,4 +190,37 @@ func (h *CouponHandler) DeleteCoupon(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// GetAvailableCouponsForUser 获取用户可领取的优惠券列表
+// @Summary 获取用户可领取的优惠券
+// @Description 查询指定用户可领取的优惠券列表，支持按门店筛选
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param user_id query string true "用户ID"
+// @Param store_id query int false "门店ID"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} object{coupons=[]models.Coupon, total=int64}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/available-for-user [get]
+func (h *CouponHandler) GetAvailableCouponsForUser(c *gin.Context) {
+	var input service.GetAvailableCouponsForUserInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, gin.H{"error": "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	coupons, total, err := h.service.GetAvailableCouponsForUser(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, gin.H{"error": "查询可领取优惠券失败: " + err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, gin.H{
+		"coupons": coupons,
+		"total":   total,
+	})
 }

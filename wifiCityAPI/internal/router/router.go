@@ -32,11 +32,12 @@ func SetupRouter() *gin.Engine {
 		// 门店相关路由
 		stores := apiV1.Group("/stores")
 		{
-			stores.POST("", storeHandler.CreateStore)            // 新增门店
-			stores.GET("", storeHandler.GetStores)               // 查询门店列表
-			stores.GET("/:storeId", storeHandler.GetStore)       // 查询门店详情
-			stores.PUT("/:storeId", storeHandler.UpdateStore)    // 更新门店信息
-			stores.DELETE("/:storeId", storeHandler.DeleteStore) // 删除门店
+			stores.POST("/with-wifi", storeHandler.CreateStoreWithWifi)
+			stores.POST("/", storeHandler.CreateStore)
+			stores.GET("/:storeId", storeHandler.GetStore)
+			stores.GET("/", storeHandler.GetStores)
+			stores.PUT("/:storeId", storeHandler.UpdateStore)
+			stores.DELETE("/:storeId", storeHandler.DeleteStore)
 			// 关联路由：查询门店下的WIFI
 			stores.GET("/:storeId/wifis", wifiHandler.GetWifiConfigsByStore)
 			// 关联路由：查询门店的每日扫码量
@@ -55,25 +56,27 @@ func SetupRouter() *gin.Engine {
 		// 用户信息相关路由
 		users := apiV1.Group("/users")
 		{
-			users.POST("", userHandler.CreateOrUpdateUser) // 创建或更新用户档案
-			users.GET("", userHandler.GetUser)             // 根据 UnionID, OpenID 或手机号获取用户详情
+			users.POST("/", userHandler.CreateOrUpdateUser) // 创建或更新用户档案
+			users.GET("/", userHandler.GetUser)             // 根据 UnionID, OpenID 或手机号获取用户详情
 		}
 
 		// 扫码日志相关路由
 		scanLogs := apiV1.Group("/scan-logs")
 		{
-			scanLogs.POST("", scanLogHandler.CreateScanLog)                   // 记录用户扫码连接日志
-			scanLogs.GET("", scanLogHandler.GetScanLogs)                      // 查询扫码日志列表
-			scanLogs.PATCH("/:id/result", scanLogHandler.UpdateScanLogResult) // 更新扫码日志连接结果
-			scanLogs.GET("/stats/daily-scans", scanLogHandler.GetDailyScanCountByStore)
+			scanLogs.POST("/", scanLogHandler.CreateScanLog)                   // 记录用户扫码连接日志
+			scanLogs.GET("/", scanLogHandler.GetScanLogs)                      // 查询扫码日志列表
+			scanLogs.PUT("/:logId/result", scanLogHandler.UpdateScanLogResult) // 更新扫码日志连接结果
+			scanLogs.GET("/stats/daily-count/:storeId", scanLogHandler.GetDailyScanCountByStore)
 		}
 
 		// 优惠券路由
 		coupons := apiV1.Group("/coupons")
 		{
-			coupons.POST("", couponHandler.CreateCoupon)
+			coupons.POST("/", couponHandler.CreateCoupon)
+			coupons.POST("/batch", couponHandler.CreateBatchCoupons)
+			coupons.GET("/available-for-user", couponHandler.GetAvailableCouponsForUser)
 			coupons.GET("/:id", couponHandler.GetCoupon)
-			coupons.GET("", couponHandler.GetCoupons)
+			coupons.GET("/", couponHandler.GetCoupons)
 			coupons.PUT("/:id", couponHandler.UpdateCoupon)
 			coupons.DELETE("/:id", couponHandler.DeleteCoupon)
 		}
@@ -81,8 +84,8 @@ func SetupRouter() *gin.Engine {
 		// 优惠券日志路由
 		couponLogs := apiV1.Group("/coupon-logs")
 		{
-			couponLogs.POST("", couponLogHandler.CreateCouponLog)
-			couponLogs.GET("", couponLogHandler.GetCouponLogs)
+			couponLogs.POST("/", couponLogHandler.CreateCouponLog)
+			couponLogs.GET("/", couponLogHandler.GetCouponLogs)
 		}
 
 		// 数据统计与报表路由
@@ -92,6 +95,16 @@ func SetupRouter() *gin.Engine {
 			stats.GET("/wifi-usage", statsHandler.GetWifiUsageStats)
 			stats.GET("/user-behavior", statsHandler.GetUserBehaviorStats)
 			stats.GET("/coupons", statsHandler.GetCouponStats)
+		}
+
+		// WIFI配置路由
+		wifi := apiV1.Group("/wifi-configs")
+		{
+			wifi.POST("/", wifiHandler.CreateWifiConfig)
+			wifi.POST("/batch", wifiHandler.CreateBatchWifiConfigs)
+			wifi.GET("/:id", wifiHandler.GetWifiConfig)
+			wifi.GET("/store/:storeId", wifiHandler.GetWifiConfigsByStore)
+			wifi.PUT("/:id", wifiHandler.UpdateWifiConfig)
 		}
 
 		// 您可以在此继续添加其他资源的路由

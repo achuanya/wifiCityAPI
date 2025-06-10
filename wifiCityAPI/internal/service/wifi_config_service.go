@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gin-gonic/gin/wifiCityAPI/internal/models"
 	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
@@ -45,6 +46,36 @@ func (s *WifiConfigService) CreateWifiConfig(input *CreateWifiConfigInput) (*mod
 		return nil, err
 	}
 	return &wifiConfig, nil
+}
+
+// CreateBatchWifiConfigs 批量创建WIFI配置
+func (s *WifiConfigService) CreateBatchWifiConfigs(inputs []*CreateWifiConfigInput) ([]models.WifiConfig, error) {
+	var createdConfigs []models.WifiConfig
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, input := range inputs {
+			config := models.WifiConfig{
+				StoreID:           input.StoreID,
+				SSID:              input.SSID,
+				PasswordEncrypted: input.PasswordEncrypted,
+				EncryptionType:    input.EncryptionType,
+				WifiType:          input.WifiType,
+				MaxConnections:    input.MaxConnections,
+			}
+			if err := tx.Create(&config).Error; err != nil {
+				// 如果任何一个创建失败，则回滚整个事务
+				return fmt.Errorf("创建WIFI配置 '%s' 失败: %w", input.SSID, err)
+			}
+			createdConfigs = append(createdConfigs, config)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return createdConfigs, nil
 }
 
 // GetWifiConfigByID 根据ID获取WIFI配置详情

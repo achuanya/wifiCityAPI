@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/gin-gonic/gin/wifiCityAPI/internal/models"
 	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
@@ -67,41 +69,84 @@ func (s *StoreService) GetStoreByID(id uint) (*models.Store, error) {
 	// 在我们的设置中，读操作默认走从库，这里为了代码清晰明确指出
 	err := database.DB.WithContext(context.Background()).First(&store, id).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Not an error, just not found
+		}
+		return nil, fmt.Errorf("查询门店失败: %w", err)
 	}
 	return &store, nil
 }
 
-// GetStoresPaginatorInput 定义了查询门店列表的分页输入
-type GetStoresPaginatorInput struct {
-	Page     int `form:"page"`
-	PageSize int `form:"pageSize"`
+// GetStoresInput 定义了查询门店列表的输入参数
+type GetStoresInput struct {
+	Page      int     `form:"page"`
+	PageSize  int     `form:"pageSize"`
+	Province  string  `form:"province"`
+	City      string  `form:"city"`
+	District  string  `form:"district"`
+	Latitude  float64 `form:"lat"`
+	Longitude float64 `form:"lng"`
+	Radius    float64 `form:"radius"` // 半径，单位：公里
 }
 
-// GetStores 获取门店列表（分页）
-// 使用读库
-func (s *StoreService) GetStores(input *GetStoresPaginatorInput) ([]models.Store, int64, error) {
+// GetStores 获取门店列表，支持分页、区域筛选和附近查询
+func (s *StoreService) GetStores(input *GetStoresInput) ([]models.Store, int64, error) {
 	var stores []models.Store
 	var total int64
 
-	if input.Page <= 0 {
-		input.Page = 1
-	}
-	if input.PageSize <= 0 {
-		input.PageSize = 10
-	}
-	offset := (input.Page - 1) * input.PageSize
+	query := database.DB.Model(&models.Store{})
 
-	db := database.DB.WithContext(context.Background())
+	// 区域筛选
+	if input.Province != "" {
+		query = query.Where("province = ?", input.Province)
+	}
+	if input.City != "" {
+		query = query.Where("city = ?", input.City)
+	}
+	if input.District != "" {
+		query = query.Where("district = ?", input.District)
+	}
+
+	// 附近门店查询
+	// Haversine 公式:
+	// a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2)
+	// c = 2 ⋅ atan2(√a, √(1−a))
+	// d = R ⋅ c
+	// R (地球半径) = 6371 公里
+	if input.Latitude != 0 && input.Longitude != 0 && input.Radius > 0 {
+		lat := input.Latitude
+		lng := input.Longitude
+		radius := input.Radius
+
+		// 使用 Haversine 公式构建 SQL 查询
+		// 1 degree of latitude = 111.045 km
+		// 1 degree of longitude = 111.045 * cos(latitude) km
+		// 为了简化和提高性能，我们先用一个矩形范围进行粗筛，再用精确的 Haversine 公式进行筛选
+		haversine := fmt.Sprintf(
+			"6371 * acos(cos(radians(%f)) * cos(radians(latitude)) * cos(radians(longitude) - radians(%f)) + sin(radians(%f)) * sin(radians(latitude)))",
+			lat, lng, lat,
+		)
+		query = query.Select(fmt.Sprintf("*, (%s) AS distance", haversine)).
+			Where(fmt.Sprintf("(%s) < ?", haversine), radius).
+			Order("distance")
+	} else {
+		query = query.Order("created_at DESC")
+	}
 
 	// 计算总数
-	if err := db.Model(&models.Store{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("统计门店数量失败: %w", err)
 	}
 
-	// 查询分页数据
-	if err := db.Offset(offset).Limit(input.PageSize).Find(&stores).Error; err != nil {
-		return nil, 0, err
+	// 分页
+	if input.Page > 0 && input.PageSize > 0 {
+		offset := (input.Page - 1) * input.PageSize
+		query = query.Offset(offset).Limit(input.PageSize)
+	}
+
+	// 执行查询
+	if err := query.Find(&stores).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询门店列表失败: %w", err)
 	}
 
 	return stores, total, nil
@@ -198,4 +243,71 @@ func (s *StoreService) DeleteStore(id uint) error {
 	})
 
 	return err
+}
+
+// CreateStoreWithWifiInput 定义了同时创建门店和WIFI的输入参数
+type CreateStoreWithWifiInput struct {
+	Store CreateStoreInput        `json:"store" binding:"required"`
+	Wifis []CreateWifiConfigInput `json:"wifis"`
+}
+
+// CreateStoreWithWifi 在一个事务中创建门店及其关联的WIFI配置
+func (s *StoreService) CreateStoreWithWifi(input *CreateStoreWithWifiInput) (*models.Store, error) {
+	var store models.Store
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 创建门店
+		store = models.Store{
+			Name:      input.Store.Name,
+			Country:   input.Store.Country,
+			Province:  input.Store.Province,
+			City:      input.Store.City,
+			District:  input.Store.District,
+			Address:   input.Store.Address,
+			Latitude:  input.Store.Latitude,
+			Longitude: input.Store.Longitude,
+			Phone:     input.Store.Phone,
+			Status:    1, // 默认启用
+		}
+		if err := tx.Create(&store).Error; err != nil {
+			return fmt.Errorf("创建门店失败: %w", err)
+		}
+
+		// 2. 如果有WIFI配置，则创建它们
+		if len(input.Wifis) > 0 {
+			for _, wifiInput := range input.Wifis {
+				wifi := models.WifiConfig{
+					StoreID:           store.StoreID, // 关联到刚刚创建的门店ID
+					SSID:              wifiInput.SSID,
+					PasswordEncrypted: wifiInput.PasswordEncrypted,
+					EncryptionType:    wifiInput.EncryptionType,
+					WifiType:          wifiInput.WifiType,
+					MaxConnections:    wifiInput.MaxConnections,
+				}
+				if err := tx.Create(&wifi).Error; err != nil {
+					// 事务将回滚
+					return fmt.Errorf("为门店 '%s' 创建WIFI配置 '%s' 失败: %w", store.Name, wifi.SSID, err)
+				}
+			}
+			// 更新门店的WIFI数量
+			if err := tx.Model(&store).Update("wifi_count", len(input.Wifis)).Error; err != nil {
+				return fmt.Errorf("更新门店WIFI数量失败: %w", err)
+			}
+			store.WifiCount = len(input.Wifis)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 重新加载WIFI配置，以便在返回的Store对象中完整显示
+	if err := database.DB.Where("store_id = ?", store.StoreID).Find(&store.WifiConfigs).Error; err != nil {
+		// 这不是一个关键错误，可以选择只记录日志而不返回错误
+		fmt.Printf("警告: 创建门店后加载WIFI配置失败: %v\n", err)
+	}
+
+	return &store, nil
 }
