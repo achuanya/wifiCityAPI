@@ -1,0 +1,25 @@
+# 配置文件 config.yaml
+server:
+  port: "8080"
+
+# 数据库配置 (主库用于写，从库用于读)
+database:
+  # 主库 (写)
+  master:
+    dsn: "wifi_city:PMJ3LHFHsmm88xm3@tcp(127.0.0.1:3306)/wifi_city?charset=utf8mb4&parseTime=True&loc=Local"
+  # 从库 (读) - 生产环境中应配置多个不同的从库实例
+  slaves:
+    - dsn: "wifi_city:PMJ3LHFHsmm88xm3@tcp(127.0.0.1:3306)/wifi_city?charset=utf8mb4&parseTime=True&loc=Local"
+  # 连接池配置
+  settings:
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_idle_time: "10m"
+    conn_max_lifetime: "1h"
+
+# API 安全配置
+security:
+  # 用于 HMAC 签名和 AES 加密的密钥 (必须是16, 24, or 32位)
+  api_secret: "09f241be1c676c30c15698af0e6fe3f9"
+  # 时间戳有效窗口, 单位: 秒
+  timestamp_window: 300 # 5 分钟 
