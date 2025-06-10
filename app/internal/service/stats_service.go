@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/models"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
+	"github.com/gin-gonic/gin/app/internal/models"
+	"github.com/gin-gonic/gin/app/pkg/database"
 )
 
 // StatsService 提供了数据统计相关的业务逻辑

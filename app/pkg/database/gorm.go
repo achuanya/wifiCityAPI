@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gin-gonic/gin/wifiCityAPI/config"
+	"github.com/gin-gonic/gin/app/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gin-gonic/gin/wifiCityAPI/config"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/router"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
+	"github.com/gin-gonic/gin/app/config"
+	"github.com/gin-gonic/gin/app/internal/router"
+	"github.com/gin-gonic/gin/app/pkg/database"
 )
 
 func main() {

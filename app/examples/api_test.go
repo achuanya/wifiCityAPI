@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/wifiCityAPI/config"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/models"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/router"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/service"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/security"
+	"github.com/gin-gonic/gin/app/config"
+	"github.com/gin-gonic/gin/app/internal/models"
+	"github.com/gin-gonic/gin/app/internal/router"
+	"github.com/gin-gonic/gin/app/internal/service"
+	"github.com/gin-gonic/gin/app/pkg/database"
+	"github.com/gin-gonic/gin/app/pkg/security"
 	"github.com/stretchr/testify/assert"
 )
 

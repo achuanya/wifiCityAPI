@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/service"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/security"
+	"github.com/gin-gonic/gin/app/internal/service"
+	"github.com/gin-gonic/gin/app/pkg/security"
 )
 
 // CouponLogHandler 负责处理优惠券日志相关的API请求

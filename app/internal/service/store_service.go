@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/models"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/database"
+	"github.com/gin-gonic/gin/app/internal/models"
+	"github.com/gin-gonic/gin/app/pkg/database"
 	"gorm.io/gorm"
 )
 

@@ -2,8 +2,8 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	v1 "github.com/gin-gonic/gin/wifiCityAPI/internal/api/v1"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/security"
+	v1 "github.com/gin-gonic/gin/app/internal/api/v1"
+	"github.com/gin-gonic/gin/app/pkg/security"
 )
 
 // SetupRouter 配置并返回一个 Gin 引擎

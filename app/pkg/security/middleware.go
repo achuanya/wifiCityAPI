@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/wifiCityAPI/config"
+	"github.com/gin-gonic/gin/app/config"
 )
 
 const (

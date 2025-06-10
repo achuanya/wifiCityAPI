@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/wifiCityAPI/internal/service"
-	"github.com/gin-gonic/gin/wifiCityAPI/pkg/security"
+	"github.com/gin-gonic/gin/app/internal/service"
+	"github.com/gin-gonic/gin/app/pkg/security"
 )
 
 // StatsHandler 负责处理统计相关的API请求
