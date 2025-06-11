@@ -20,6 +20,15 @@ func main() {
 	// 启动服务器
 	serverAddr := fmt.Sprintf(":%s", config.Cfg.Server.Port)
 	log.Printf("服务器正在启动，监听地址: %s", serverAddr)
+
+	// 记录域名信息
+	log.Printf("API 服务将通过域名访问: %s", config.Cfg.Server.Domain)
+	if config.Cfg.Server.UseHTTPS {
+		log.Printf("HTTPS 已启用")
+	} else {
+		log.Printf("HTTPS 未启用，仅使用 HTTP")
+	}
+
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
 	}

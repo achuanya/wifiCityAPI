@@ -12,7 +12,14 @@ func SetupRouter() *gin.Engine {
 	// 使用 gin.Default() 创建一个带有默认中间件（Logger 和 Recovery）的路由引擎
 	r := gin.Default()
 
-	// 可以在这里添加一些全局中间件，例如 CORS 等
+	// 添加全局中间件
+	// 1. 域名检查中间件
+	r.Use(security.DomainCheck())
+
+	// 2. 安全头信息中间件
+	r.Use(security.SetSecureHeaders())
+
+	// 3. 可以添加其他全局中间件，例如 CORS 等
 	// r.Use(middlewares.Cors())
 
 	// API V1 路由组

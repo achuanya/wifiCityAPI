@@ -1,6 +1,8 @@
 # 配置文件 config.yaml
 server:
   port: "8080"
+  domain: "wificityapi.lhasa.icu"
+  use_https: false
 
 # 数据库配置 (主库用于写，从库用于读)
 database:

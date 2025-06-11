@@ -20,7 +20,9 @@ type Config struct {
 
 // ServerConfig 定义了服务器相关的配置
 type ServerConfig struct {
-	Port string `yaml:"port"`
+	Port     string `yaml:"port"`
+	Domain   string `yaml:"domain"`
+	UseHTTPS bool   `yaml:"use_https"`
 }
 
 // DatabaseConfig 定义了数据库连接配置
@@ -55,7 +57,11 @@ func init() {
 	if os.Getenv("GIN_MODE") == "test" {
 		// 为测试环境设置默认配置
 		Cfg = &Config{
-			Server: ServerConfig{Port: "8080"},
+			Server: ServerConfig{
+				Port:     "8080",
+				Domain:   "localhost",
+				UseHTTPS: false,
+			},
 			Database: DatabaseConfig{
 				Master:   DBSource{DSN: "user:pass@tcp(127.0.0.1:3306)/test_db?charset=utf8mb4&parseTime=True&loc=Local"},
 				Slaves:   []DBSource{{DSN: "user:pass@tcp(127.0.0.1:3306)/test_db?charset=utf8mb4&parseTime=True&loc=Local"}},
@@ -66,8 +72,14 @@ func init() {
 		return
 	}
 
+	// 尝试从环境变量获取配置文件路径
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config/config.yaml"
+	}
+
 	// 加载配置文件
-	if err := LoadConfig("config/config.yaml"); err != nil {
+	if err := LoadConfig(configPath); err != nil {
 		log.Fatalf("无法加载配置文件: %v", err)
 	}
 }
@@ -89,6 +101,16 @@ func LoadConfig(path string) error {
 
 	// 将秒转换为 time.Duration
 	Cfg.Security.TimestampWindow = Cfg.Security.TimestampWindow * time.Second
+
+	// 允许从环境变量覆盖域名配置
+	if domain := os.Getenv("API_DOMAIN"); domain != "" {
+		Cfg.Server.Domain = domain
+	}
+
+	// 允许从环境变量覆盖HTTPS配置
+	if useHTTPS := os.Getenv("USE_HTTPS"); useHTTPS == "true" {
+		Cfg.Server.UseHTTPS = true
+	}
 
 	return nil
 }
