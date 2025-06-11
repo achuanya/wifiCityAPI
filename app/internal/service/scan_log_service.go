@@ -4,6 +4,7 @@ import (
 	"app/internal/models"
 	"app/pkg/database"
 	"context"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -162,4 +163,111 @@ func (s *ScanLogService) GetDailyScanCountByStore(storeID uint, days int) ([]Dai
 		Scan(&results).Error
 
 	return results, err
+}
+
+// GetFailedScanLogsInput 定义获取失败扫码日志的输入参数
+type GetFailedScanLogsInput struct {
+	StoreID        *uint   `form:"store_id"`
+	UserUnionID    *string `form:"user_union_id"`
+	FailReasonCode *string `form:"fail_reason_code"`
+	StartDate      *string `form:"start_date"` // 格式: YYYY-MM-DD
+	EndDate        *string `form:"end_date"`   // 格式: YYYY-MM-DD
+	Page           int     `form:"page"`
+	PageSize       int     `form:"pageSize"`
+}
+
+// GetFailedScanLogs 获取扫码连接失败的日志列表
+func (s *ScanLogService) GetFailedScanLogs(input *GetFailedScanLogsInput) ([]models.ScanLog, int64, error) {
+	// 构建查询
+	query := database.DB.Model(&models.ScanLog{}).Where("success_flag = ?", false)
+
+	// 应用筛选条件
+	if input.StoreID != nil {
+		query = query.Where("store_id = ?", *input.StoreID)
+	}
+	if input.UserUnionID != nil && *input.UserUnionID != "" {
+		query = query.Where("user_union_id = ?", *input.UserUnionID)
+	}
+	if input.FailReasonCode != nil && *input.FailReasonCode != "" {
+		query = query.Where("fail_reason_code = ?", *input.FailReasonCode)
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		query = query.Where("scan_time >= ?", *input.StartDate)
+	}
+	if input.EndDate != nil && *input.EndDate != "" {
+		query = query.Where("scan_time <= ?", *input.EndDate+" 23:59:59")
+	}
+
+	// 计算总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("统计失败日志数量失败: %w", err)
+	}
+
+	// 分页
+	if input.Page > 0 && input.PageSize > 0 {
+		offset := (input.Page - 1) * input.PageSize
+		query = query.Offset(offset).Limit(input.PageSize)
+	}
+
+	// 排序
+	query = query.Order("scan_time DESC")
+
+	// 执行查询
+	var logs []models.ScanLog
+	if err := query.Find(&logs).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询失败日志列表失败: %w", err)
+	}
+
+	return logs, total, nil
+}
+
+// GetUserScanLogsInput 定义获取用户扫码日志的输入参数
+type GetUserScanLogsInput struct {
+	UserUnionID string  `form:"user_union_id" binding:"required"`
+	SuccessFlag *bool   `form:"success_flag"`
+	StartDate   *string `form:"start_date"` // 格式: YYYY-MM-DD
+	EndDate     *string `form:"end_date"`   // 格式: YYYY-MM-DD
+	Page        int     `form:"page"`
+	PageSize    int     `form:"pageSize"`
+}
+
+// GetUserScanLogs 获取指定用户的扫码历史记录
+func (s *ScanLogService) GetUserScanLogs(input *GetUserScanLogsInput) ([]models.ScanLog, int64, error) {
+	// 构建查询
+	query := database.DB.Model(&models.ScanLog{}).Where("user_union_id = ?", input.UserUnionID)
+
+	// 应用筛选条件
+	if input.SuccessFlag != nil {
+		query = query.Where("success_flag = ?", *input.SuccessFlag)
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		query = query.Where("scan_time >= ?", *input.StartDate)
+	}
+	if input.EndDate != nil && *input.EndDate != "" {
+		query = query.Where("scan_time <= ?", *input.EndDate+" 23:59:59")
+	}
+
+	// 计算总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("统计用户扫码日志数量失败: %w", err)
+	}
+
+	// 分页
+	if input.Page > 0 && input.PageSize > 0 {
+		offset := (input.Page - 1) * input.PageSize
+		query = query.Offset(offset).Limit(input.PageSize)
+	}
+
+	// 排序
+	query = query.Order("scan_time DESC")
+
+	// 执行查询
+	var logs []models.ScanLog
+	if err := query.Find(&logs).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询用户扫码日志列表失败: %w", err)
+	}
+
+	return logs, total, nil
 }

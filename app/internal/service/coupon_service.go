@@ -323,3 +323,234 @@ func (s *CouponService) DeleteCoupon(id uint) error {
 	})
 	return err
 }
+
+// UpdateCouponValidityInput 定义更新优惠券有效期的输入
+type UpdateCouponValidityInput struct {
+	StartTime    string `json:"start_time"`    // 格式: "2006-01-02 15:04:05"
+	EndTime      string `json:"end_time"`      // 格式: "2006-01-02 15:04:05"
+	ValidityDays *int   `json:"validity_days"` // 领取后有效天数，使用指针可区分0和未设置
+}
+
+// UpdateCouponValidity 仅更新优惠券的有效期
+func (s *CouponService) UpdateCouponValidity(id uint, input *UpdateCouponValidityInput) (*models.Coupon, error) {
+	var coupon models.Coupon
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 先查询
+		if err := tx.First(&coupon, id).Error; err != nil {
+			return err
+		}
+
+		// 更新有效期
+		if input.StartTime != "" {
+			startTime, err := time.Parse("2006-01-02 15:04:05", input.StartTime)
+			if err != nil {
+				return fmt.Errorf("无效的开始时间格式: %w", err)
+			}
+			coupon.StartTime = startTime
+		}
+
+		if input.EndTime != "" {
+			endTime, err := time.Parse("2006-01-02 15:04:05", input.EndTime)
+			if err != nil {
+				return fmt.Errorf("无效的结束时间格式: %w", err)
+			}
+			coupon.EndTime = endTime
+		}
+
+		if input.ValidityDays != nil {
+			coupon.ValidityDays = *input.ValidityDays
+		}
+
+		// 保存
+		return tx.Save(&coupon).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &coupon, nil
+}
+
+// UpdateCouponLimitInput 定义更新优惠券使用限制的输入
+type UpdateCouponLimitInput struct {
+	MinPurchaseAmount *float64 `json:"min_purchase_amount"`  // 最低消费金额
+	UsageLimitPerUser *int     `json:"usage_limit_per_user"` // 每个用户可领取的最大数量
+}
+
+// UpdateCouponLimit 仅更新优惠券的使用限制
+func (s *CouponService) UpdateCouponLimit(id uint, input *UpdateCouponLimitInput) (*models.Coupon, error) {
+	var coupon models.Coupon
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 先查询
+		if err := tx.First(&coupon, id).Error; err != nil {
+			return err
+		}
+
+		// 更新限制
+		if input.MinPurchaseAmount != nil {
+			coupon.MinPurchaseAmount = *input.MinPurchaseAmount
+		}
+
+		if input.UsageLimitPerUser != nil {
+			coupon.UsageLimitPerUser = *input.UsageLimitPerUser
+		}
+
+		// 保存
+		return tx.Save(&coupon).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &coupon, nil
+}
+
+// UpdateCouponQuantityInput 定义更新优惠券发行量的输入
+type UpdateCouponQuantityInput struct {
+	TotalQuantity  *int `json:"total_quantity"`  // 总发行量
+	IssuedQuantity *int `json:"issued_quantity"` // 已发行数量
+}
+
+// UpdateCouponQuantity 仅更新优惠券的发行量
+func (s *CouponService) UpdateCouponQuantity(id uint, input *UpdateCouponQuantityInput) (*models.Coupon, error) {
+	var coupon models.Coupon
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 先查询
+		if err := tx.First(&coupon, id).Error; err != nil {
+			return err
+		}
+
+		// 更新发行量
+		if input.TotalQuantity != nil {
+			if *input.TotalQuantity < coupon.IssuedQuantity {
+				return fmt.Errorf("总发行量不能小于已发行数量")
+			}
+			coupon.TotalQuantity = *input.TotalQuantity
+		}
+
+		if input.IssuedQuantity != nil {
+			if *input.IssuedQuantity > coupon.TotalQuantity && coupon.TotalQuantity > 0 {
+				return fmt.Errorf("已发行数量不能大于总发行量")
+			}
+			coupon.IssuedQuantity = *input.IssuedQuantity
+		}
+
+		// 保存
+		return tx.Save(&coupon).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &coupon, nil
+}
+
+// UpdateCouponStoreInput 定义更新优惠券适用门店的输入
+type UpdateCouponStoreInput struct {
+	StoreID *uint `json:"store_id"` // 使用指针可将null传入表示全平台适用
+}
+
+// UpdateCouponStore 仅更新优惠券的适用门店
+func (s *CouponService) UpdateCouponStore(id uint, input *UpdateCouponStoreInput) (*models.Coupon, error) {
+	var coupon models.Coupon
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 先查询
+		if err := tx.First(&coupon, id).Error; err != nil {
+			return err
+		}
+
+		// 如果指定了门店ID，需要验证门店是否存在
+		if input.StoreID != nil && *input.StoreID > 0 {
+			var count int64
+			if err := tx.Model(&models.Store{}).Where("store_id = ?", *input.StoreID).Count(&count).Error; err != nil {
+				return err
+			}
+			if count == 0 {
+				return fmt.Errorf("指定的门店不存在")
+			}
+		}
+
+		// 更新适用门店
+		coupon.StoreID = input.StoreID
+
+		// 保存
+		return tx.Save(&coupon).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &coupon, nil
+}
+
+// UpdateCouponStatus 仅更新优惠券的状态
+func (s *CouponService) UpdateCouponStatus(id uint, status int8) (*models.Coupon, error) {
+	var coupon models.Coupon
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 先查询
+		if err := tx.First(&coupon, id).Error; err != nil {
+			return err
+		}
+
+		// 更新状态
+		coupon.Status = status
+
+		// 保存
+		return tx.Save(&coupon).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &coupon, nil
+}
+
+// GetCouponsByStoreInput 定义获取门店可用优惠券列表的输入参数
+type GetCouponsByStoreInput struct {
+	StoreID  uint `form:"store_id" binding:"required"`
+	Page     int  `form:"page"`
+	PageSize int  `form:"pageSize"`
+}
+
+// GetCouponsByStore 获取门店可用优惠券列表
+func (s *CouponService) GetCouponsByStore(input *GetCouponsByStoreInput) ([]models.Coupon, int64, error) {
+	var coupons []models.Coupon
+	var total int64
+
+	// 查询状态为正常、且未过期的优惠券（特定门店的或全平台通用的）
+	query := database.DB.Model(&models.Coupon{}).
+		Where("status = ?", 1).
+		Where("end_time > ?", time.Now()).
+		Where("(store_id IS NULL OR store_id = ?)", input.StoreID)
+
+	// 计算总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("统计门店优惠券数量失败: %w", err)
+	}
+
+	// 分页
+	if input.Page > 0 && input.PageSize > 0 {
+		offset := (input.Page - 1) * input.PageSize
+		query = query.Offset(offset).Limit(input.PageSize)
+	}
+
+	// 排序
+	query = query.Order("created_at DESC")
+
+	// 执行查询
+	if err := query.Find(&coupons).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询门店优惠券列表失败: %w", err)
+	}
+
+	return coupons, total, nil
+}

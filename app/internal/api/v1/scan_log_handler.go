@@ -150,3 +150,79 @@ func (h *ScanLogHandler) GetDailyScanCountByStore(c *gin.Context) {
 
 	security.SendEncryptedResponse(c, http.StatusOK, stats)
 }
+
+// GetFailedScanLogs godoc
+// @Summary 查询扫码连接失败日志
+// @Description 获取扫码连接失败的日志记录，支持多种筛选条件
+// @Tags ScanLogs
+// @Accept  json
+// @Produce  json
+// @Param store_id query int false "门店ID"
+// @Param user_union_id query string false "用户UnionID"
+// @Param fail_reason_code query string false "失败原因代码"
+// @Param start_date query string false "开始日期（格式：YYYY-MM-DD）"
+// @Param end_date query string false "结束日期（格式：YYYY-MM-DD）"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} object{logs=[]models.ScanLog, total=int64}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /scan-logs/failed [get]
+func (h *ScanLogHandler) GetFailedScanLogs(c *gin.Context) {
+	var input service.GetFailedScanLogsInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	logs, total, err := h.service.GetFailedScanLogs(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, gin.H{
+		"logs":  logs,
+		"total": total,
+	})
+}
+
+// GetUserScanLogs godoc
+// @Summary 查询指定用户的扫码历史
+// @Description 获取指定用户的扫码历史记录
+// @Tags ScanLogs
+// @Accept  json
+// @Produce  json
+// @Param user_union_id query string true "用户UnionID"
+// @Param success_flag query boolean false "是否成功连接"
+// @Param start_date query string false "开始日期（格式：YYYY-MM-DD）"
+// @Param end_date query string false "结束日期（格式：YYYY-MM-DD）"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} object{logs=[]models.ScanLog, total=int64}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /scan-logs/user [get]
+func (h *ScanLogHandler) GetUserScanLogs(c *gin.Context) {
+	var input service.GetUserScanLogsInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	if input.UserUnionID == "" {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "用户ID不能为空"})
+		return
+	}
+
+	logs, total, err := h.service.GetUserScanLogs(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, gin.H{
+		"logs":  logs,
+		"total": total,
+	})
+}

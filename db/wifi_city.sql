@@ -1,6 +1,6 @@
 -- wifi_city
--- CREATE DATABASE IF NOT EXISTS wifi_city DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;
--- USE wifi_city;
+CREATE DATABASE IF NOT EXISTS wifi_city DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE wifi_city;
 
 -- 门店表 store
 CREATE TABLE store (

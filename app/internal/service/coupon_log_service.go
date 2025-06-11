@@ -175,3 +175,117 @@ func (s *CouponLogService) GetCouponLogs(input *GetCouponLogsInput) ([]models.Co
 
 	return logs, total, nil
 }
+
+// GetCouponClaimLogsInput 定义获取优惠券领取记录的输入参数
+type GetCouponClaimLogsInput struct {
+	CouponID    *uint   `form:"coupon_id"`
+	UserUnionID *string `form:"user_union_id"`
+	StoreID     *uint   `form:"store_id"`
+	StartDate   *string `form:"start_date"` // 格式: YYYY-MM-DD
+	EndDate     *string `form:"end_date"`   // 格式: YYYY-MM-DD
+	Page        int     `form:"page"`
+	PageSize    int     `form:"pageSize"`
+}
+
+// GetCouponClaimLogs 获取优惠券领取记录
+func (s *CouponLogService) GetCouponClaimLogs(input *GetCouponClaimLogsInput) ([]models.CouponLog, int64, error) {
+	// 构建查询
+	query := database.DB.Model(&models.CouponLog{}).Where("action_type = ?", "claim")
+
+	// 应用筛选条件
+	if input.CouponID != nil {
+		query = query.Where("coupon_id = ?", *input.CouponID)
+	}
+	if input.UserUnionID != nil && *input.UserUnionID != "" {
+		query = query.Where("user_union_id = ?", *input.UserUnionID)
+	}
+	if input.StoreID != nil {
+		query = query.Where("store_id = ?", *input.StoreID)
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		query = query.Where("action_time >= ?", *input.StartDate)
+	}
+	if input.EndDate != nil && *input.EndDate != "" {
+		query = query.Where("action_time <= ?", *input.EndDate+" 23:59:59")
+	}
+
+	// 计算总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("统计领取记录数量失败: %w", err)
+	}
+
+	// 分页
+	if input.Page > 0 && input.PageSize > 0 {
+		offset := (input.Page - 1) * input.PageSize
+		query = query.Offset(offset).Limit(input.PageSize)
+	}
+
+	// 排序
+	query = query.Order("action_time DESC")
+
+	// 执行查询
+	var logs []models.CouponLog
+	if err := query.Find(&logs).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询领取记录失败: %w", err)
+	}
+
+	return logs, total, nil
+}
+
+// GetCouponUseLogsInput 定义获取优惠券使用记录的输入参数
+type GetCouponUseLogsInput struct {
+	CouponID    *uint   `form:"coupon_id"`
+	UserUnionID *string `form:"user_union_id"`
+	StoreID     *uint   `form:"store_id"`
+	StartDate   *string `form:"start_date"` // 格式: YYYY-MM-DD
+	EndDate     *string `form:"end_date"`   // 格式: YYYY-MM-DD
+	Page        int     `form:"page"`
+	PageSize    int     `form:"pageSize"`
+}
+
+// GetCouponUseLogs 获取优惠券使用记录
+func (s *CouponLogService) GetCouponUseLogs(input *GetCouponUseLogsInput) ([]models.CouponLog, int64, error) {
+	// 构建查询
+	query := database.DB.Model(&models.CouponLog{}).Where("action_type = ?", "use")
+
+	// 应用筛选条件
+	if input.CouponID != nil {
+		query = query.Where("coupon_id = ?", *input.CouponID)
+	}
+	if input.UserUnionID != nil && *input.UserUnionID != "" {
+		query = query.Where("user_union_id = ?", *input.UserUnionID)
+	}
+	if input.StoreID != nil {
+		query = query.Where("store_id = ?", *input.StoreID)
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		query = query.Where("action_time >= ?", *input.StartDate)
+	}
+	if input.EndDate != nil && *input.EndDate != "" {
+		query = query.Where("action_time <= ?", *input.EndDate+" 23:59:59")
+	}
+
+	// 计算总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("统计使用记录数量失败: %w", err)
+	}
+
+	// 分页
+	if input.Page > 0 && input.PageSize > 0 {
+		offset := (input.Page - 1) * input.PageSize
+		query = query.Offset(offset).Limit(input.PageSize)
+	}
+
+	// 排序
+	query = query.Order("action_time DESC")
+
+	// 执行查询
+	var logs []models.CouponLog
+	if err := query.Find(&logs).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询使用记录失败: %w", err)
+	}
+
+	return logs, total, nil
+}

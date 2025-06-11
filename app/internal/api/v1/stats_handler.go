@@ -119,3 +119,62 @@ func (h *StatsHandler) GetCouponStats(c *gin.Context) {
 	}
 	security.SendEncryptedResponse(c, http.StatusOK, stats)
 }
+
+// GetPopularWifi godoc
+// @Summary 最受欢迎WIFI统计
+// @Description 获取最受欢迎的WIFI配置统计，可按门店、时间段筛选
+// @Tags Stats
+// @Accept  json
+// @Produce  json
+// @Param store_id query int false "门店ID"
+// @Param start_date query string false "开始日期（格式：YYYY-MM-DD）"
+// @Param end_date query string false "结束日期（格式：YYYY-MM-DD）"
+// @Param limit query int false "返回记录数量（默认10）"
+// @Success 200 {object} []service.WifiPopularityItem
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /stats/popular-wifi [get]
+func (h *StatsHandler) GetPopularWifi(c *gin.Context) {
+	var input service.GetPopularWifiInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	stats, err := h.service.GetPopularWifi(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, stats)
+}
+
+// GetScanTimeDistribution godoc
+// @Summary 扫码时段分布统计
+// @Description 获取扫码时段的分布统计，可按门店、时间段筛选
+// @Tags Stats
+// @Accept  json
+// @Produce  json
+// @Param store_id query int false "门店ID"
+// @Param start_date query string false "开始日期（格式：YYYY-MM-DD）"
+// @Param end_date query string false "结束日期（格式：YYYY-MM-DD）"
+// @Success 200 {object} []service.HourlyDistribution
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /stats/scan-time-distribution [get]
+func (h *StatsHandler) GetScanTimeDistribution(c *gin.Context) {
+	var input service.GetScanTimeDistributionInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	stats, err := h.service.GetScanTimeDistribution(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, stats)
+}

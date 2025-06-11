@@ -94,6 +94,28 @@ func (s *WifiConfigService) GetWifiConfigsByStoreID(storeID uint) ([]models.Wifi
 	return wifiConfigs, err
 }
 
+// GetWifiConfigsByStoreAndTypeInput 定义获取门店特定类型WIFI配置的输入参数
+type GetWifiConfigsByStoreAndTypeInput struct {
+	StoreID  uint   `form:"store_id" binding:"required"`
+	WifiType string `form:"wifi_type" binding:"required"`
+}
+
+// GetWifiConfigsByStoreAndType 获取门店特定类型的WIFI配置
+func (s *WifiConfigService) GetWifiConfigsByStoreAndType(input *GetWifiConfigsByStoreAndTypeInput) ([]models.WifiConfig, error) {
+	var wifiConfigs []models.WifiConfig
+
+	// 查询指定门店下指定类型的WIFI配置
+	err := database.DB.WithContext(context.Background()).
+		Where("store_id = ? AND wifi_type = ?", input.StoreID, input.WifiType).
+		Find(&wifiConfigs).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询门店特定类型WIFI配置失败: %w", err)
+	}
+
+	return wifiConfigs, nil
+}
+
 // UpdateWifiConfigInput 定义了更新WIFI配置的输入
 type UpdateWifiConfigInput struct {
 	SSID              string `json:"ssid"`
@@ -157,4 +179,38 @@ func (s *WifiConfigService) DeleteWifiConfig(id uint) error {
 		return nil
 	})
 	return err
+}
+
+// DeleteBatchWifiConfigs 批量删除多个WIFI配置
+func (s *WifiConfigService) DeleteBatchWifiConfigs(ids []uint) error {
+	// 使用事务确保数据一致性
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		// 查询这些WIFI配置关联的门店信息
+		var wifiConfigs []models.WifiConfig
+		if err := tx.Where("wifi_id IN ?", ids).Find(&wifiConfigs).Error; err != nil {
+			return err
+		}
+
+		// 创建一个map来存储每个门店的WIFI数量变更
+		storeWifiCount := make(map[uint]int)
+		for _, wifi := range wifiConfigs {
+			storeWifiCount[wifi.StoreID]--
+		}
+
+		// 删除WIFI配置
+		if err := tx.Where("wifi_id IN ?", ids).Delete(&models.WifiConfig{}).Error; err != nil {
+			return err
+		}
+
+		// 更新每个门店的WIFI数量
+		for storeID, count := range storeWifiCount {
+			if count != 0 {
+				if err := tx.Exec("UPDATE store SET wifi_count = wifi_count + ? WHERE store_id = ?", count, storeID).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }

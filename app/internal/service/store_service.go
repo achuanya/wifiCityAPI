@@ -312,3 +312,98 @@ func (s *StoreService) CreateStoreWithWifi(input *CreateStoreWithWifiInput) (*mo
 
 	return &store, nil
 }
+
+// UpdateStoreStatus 仅更新门店状态
+func (s *StoreService) UpdateStoreStatus(id uint, status int8) (*models.Store, error) {
+	var store models.Store
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 在事务中首先查找记录，确保记录存在
+		if err := tx.First(&store, id).Error; err != nil {
+			return err
+		}
+
+		// 2. 更新状态
+		store.Status = status
+
+		// 3. 在同一个事务中保存更新
+		if err := tx.Save(&store).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &store, nil
+}
+
+// UpdateStorePhone 仅更新门店联系电话
+func (s *StoreService) UpdateStorePhone(id uint, phone string) (*models.Store, error) {
+	var store models.Store
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 在事务中首先查找记录，确保记录存在
+		if err := tx.First(&store, id).Error; err != nil {
+			return err
+		}
+
+		// 2. 更新电话
+		store.Phone = phone
+
+		// 3. 在同一个事务中保存更新
+		if err := tx.Save(&store).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &store, nil
+}
+
+// UpdateStoreLocationInput 定义了更新门店地理位置的输入
+type UpdateStoreLocationInput struct {
+	Latitude  float64 `json:"latitude" binding:"required"`
+	Longitude float64 `json:"longitude" binding:"required"`
+	Address   string  `json:"address"`
+}
+
+// UpdateStoreLocation 仅更新门店地理位置信息
+func (s *StoreService) UpdateStoreLocation(id uint, input *UpdateStoreLocationInput) (*models.Store, error) {
+	var store models.Store
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 在事务中首先查找记录，确保记录存在
+		if err := tx.First(&store, id).Error; err != nil {
+			return err
+		}
+
+		// 2. 更新地理位置
+		store.Latitude = input.Latitude
+		store.Longitude = input.Longitude
+		if input.Address != "" {
+			store.Address = input.Address
+		}
+
+		// 3. 在同一个事务中保存更新
+		if err := tx.Save(&store).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &store, nil
+}

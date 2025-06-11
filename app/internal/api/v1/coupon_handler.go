@@ -225,3 +225,237 @@ func (h *CouponHandler) GetAvailableCouponsForUser(c *gin.Context) {
 		"total":   total,
 	})
 }
+
+// UpdateCouponValidity godoc
+// @Summary 更新优惠券有效期
+// @Description 仅更新优惠券的有效期信息
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param id path int true "优惠券ID"
+// @Param validity body service.UpdateCouponValidityInput true "有效期信息"
+// @Success 200 {object} models.Coupon
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/{id}/validity [patch]
+func (h *CouponHandler) UpdateCouponValidity(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的优惠券ID"})
+		return
+	}
+
+	var input service.UpdateCouponValidityInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	coupon, err := h.service.UpdateCouponValidity(uint(id), &input)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "优惠券未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, coupon)
+}
+
+// UpdateCouponLimit godoc
+// @Summary 更新优惠券使用限制
+// @Description 仅更新优惠券的使用限制（最低消费金额、每人可领取数量）
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param id path int true "优惠券ID"
+// @Param limit body service.UpdateCouponLimitInput true "使用限制信息"
+// @Success 200 {object} models.Coupon
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/{id}/limit [patch]
+func (h *CouponHandler) UpdateCouponLimit(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的优惠券ID"})
+		return
+	}
+
+	var input service.UpdateCouponLimitInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	coupon, err := h.service.UpdateCouponLimit(uint(id), &input)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "优惠券未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, coupon)
+}
+
+// UpdateCouponQuantity godoc
+// @Summary 更新优惠券发行量
+// @Description 仅更新优惠券的总发行量和已发行数量
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param id path int true "优惠券ID"
+// @Param quantity body service.UpdateCouponQuantityInput true "发行量信息"
+// @Success 200 {object} models.Coupon
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/{id}/quantity [patch]
+func (h *CouponHandler) UpdateCouponQuantity(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的优惠券ID"})
+		return
+	}
+
+	var input service.UpdateCouponQuantityInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	coupon, err := h.service.UpdateCouponQuantity(uint(id), &input)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "优惠券未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, coupon)
+}
+
+// UpdateCouponStore godoc
+// @Summary 更新优惠券适用门店
+// @Description 仅更新优惠券的适用门店（特定门店或全平台通用）
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param id path int true "优惠券ID"
+// @Param store body service.UpdateCouponStoreInput true "门店信息"
+// @Success 200 {object} models.Coupon
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/{id}/store [patch]
+func (h *CouponHandler) UpdateCouponStore(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的优惠券ID"})
+		return
+	}
+
+	var input service.UpdateCouponStoreInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	coupon, err := h.service.UpdateCouponStore(uint(id), &input)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "优惠券未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, coupon)
+}
+
+// UpdateCouponStatus godoc
+// @Summary 更新优惠券状态
+// @Description 更新优惠券的状态（启用/停用/已过期等）
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param id path int true "优惠券ID"
+// @Param status body object{status=int8} true "优惠券状态（1:正常, 0:停用, 2:已过期）"
+// @Success 200 {object} models.Coupon
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/{id}/status [patch]
+func (h *CouponHandler) UpdateCouponStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的优惠券ID"})
+		return
+	}
+
+	var input struct {
+		Status int8 `json:"status" binding:"required,oneof=0 1 2"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的状态值"})
+		return
+	}
+
+	coupon, err := h.service.UpdateCouponStatus(uint(id), input.Status)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "优惠券未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, coupon)
+}
+
+// GetCouponsByStore godoc
+// @Summary 查询门店可用优惠券列表
+// @Description 获取指定门店可用的所有优惠券列表
+// @Tags Coupons
+// @Accept  json
+// @Produce  json
+// @Param store_id query int true "门店ID"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} object{coupons=[]models.Coupon,total=int64}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /coupons/store [get]
+func (h *CouponHandler) GetCouponsByStore(c *gin.Context) {
+	var input service.GetCouponsByStoreInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	if input.StoreID == 0 {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "门店ID不能为空"})
+		return
+	}
+
+	coupons, total, err := h.service.GetCouponsByStore(&input)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, gin.H{
+		"coupons": coupons,
+		"total":   total,
+	})
+}

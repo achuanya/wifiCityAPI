@@ -195,3 +195,124 @@ func (h *StoreHandler) DeleteStore(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
+// UpdateStoreStatus godoc
+// @Summary 更新门店状态
+// @Description 仅更新门店的状态（启用/停用）
+// @Tags Stores
+// @Accept  json
+// @Produce  json
+// @Param storeId path int true "门店ID"
+// @Param status body object{status=int8} true "门店状态（1:启用, 0:停用）"
+// @Success 200 {object} models.Store
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /stores/{storeId}/status [patch]
+func (h *StoreHandler) UpdateStoreStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("storeId"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的门店ID格式"})
+		return
+	}
+
+	var input struct {
+		Status int8 `json:"status" binding:"required,oneof=0 1"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的状态值，应为0或1"})
+		return
+	}
+
+	store, err := h.service.UpdateStoreStatus(uint(id), input.Status)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "门店未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, store)
+}
+
+// UpdateStorePhone godoc
+// @Summary 更新门店联系电话
+// @Description 仅更新门店的联系电话
+// @Tags Stores
+// @Accept  json
+// @Produce  json
+// @Param storeId path int true "门店ID"
+// @Param phone body object{phone=string} true "门店联系电话"
+// @Success 200 {object} models.Store
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /stores/{storeId}/phone [patch]
+func (h *StoreHandler) UpdateStorePhone(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("storeId"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的门店ID格式"})
+		return
+	}
+
+	var input struct {
+		Phone string `json:"phone" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "电话号码不能为空"})
+		return
+	}
+
+	store, err := h.service.UpdateStorePhone(uint(id), input.Phone)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "门店未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, store)
+}
+
+// UpdateStoreLocation godoc
+// @Summary 更新门店地理位置
+// @Description 更新门店的地理坐标和地址信息
+// @Tags Stores
+// @Accept  json
+// @Produce  json
+// @Param storeId path int true "门店ID"
+// @Param location body service.UpdateStoreLocationInput true "门店地理位置信息"
+// @Success 200 {object} models.Store
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /stores/{storeId}/location [patch]
+func (h *StoreHandler) UpdateStoreLocation(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("storeId"), 10, 32)
+	if err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的门店ID格式"})
+		return
+	}
+
+	var input service.UpdateStoreLocationInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的位置信息: " + err.Error()})
+		return
+	}
+
+	store, err := h.service.UpdateStoreLocation(uint(id), &input)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			security.SendEncryptedResponse(c, http.StatusNotFound, security.ErrorResponse{Error: "门店未找到"})
+		} else {
+			security.SendEncryptedResponse(c, http.StatusInternalServerError, security.ErrorResponse{Error: err.Error()})
+		}
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, store)
+}

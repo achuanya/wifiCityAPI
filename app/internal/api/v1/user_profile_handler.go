@@ -6,6 +6,7 @@ import (
 	"app/pkg/security"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -87,4 +88,124 @@ func (h *UserProfileHandler) GetUser(c *gin.Context) {
 	}
 
 	security.SendEncryptedResponse(c, http.StatusOK, user)
+}
+
+// BindPhoneNumber godoc
+// @Summary      用户绑定手机号
+// @Description  为指定用户绑定手机号
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        input body struct{user_union_id string "用户UnionID" phone_number string "手机号" phone_country_code string "国家代码"} true "绑定手机号请求体"
+// @Success      200  {object}  security.EncryptedData
+// @Failure      400  {object}  security.EncryptedData
+// @Failure      404  {object}  security.EncryptedData
+// @Failure      500  {object}  security.EncryptedData
+// @Router       /users/bind-phone [post]
+func (h *UserProfileHandler) BindPhoneNumber(c *gin.Context) {
+	var input struct {
+		UserUnionID      string `json:"user_union_id" binding:"required"`
+		PhoneNumber      string `json:"phone_number" binding:"required"`
+		PhoneCountryCode string `json:"phone_country_code" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的请求数据: " + err.Error()})
+		return
+	}
+
+	user, err := h.service.BindPhoneNumber(input.UserUnionID, input.PhoneNumber, input.PhoneCountryCode)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "用户不存在") {
+			status = http.StatusNotFound
+		} else if strings.Contains(err.Error(), "已被其他用户绑定") {
+			status = http.StatusBadRequest
+		}
+
+		security.SendEncryptedResponse(c, status, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, user)
+}
+
+// UnbindPhoneNumber godoc
+// @Summary      用户解绑手机号
+// @Description  解除指定用户的手机号绑定
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        input body struct{user_union_id string "用户UnionID"} true "解绑手机号请求体"
+// @Success      200  {object}  security.EncryptedData
+// @Failure      400  {object}  security.EncryptedData
+// @Failure      404  {object}  security.EncryptedData
+// @Failure      500  {object}  security.EncryptedData
+// @Router       /users/unbind-phone [post]
+func (h *UserProfileHandler) UnbindPhoneNumber(c *gin.Context) {
+	var input struct {
+		UserUnionID string `json:"user_union_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的请求数据: " + err.Error()})
+		return
+	}
+
+	user, err := h.service.UnbindPhoneNumber(input.UserUnionID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "用户不存在") {
+			status = http.StatusNotFound
+		}
+
+		security.SendEncryptedResponse(c, status, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, user)
+}
+
+// GetUserScanHistory godoc
+// @Summary 查询用户扫码门店历史
+// @Description 获取指定用户的扫码历史记录
+// @Tags Users
+// @Accept  json
+// @Produce  json
+// @Param user_union_id query string true "用户UnionID"
+// @Param start_date query string false "开始日期（格式：YYYY-MM-DD）"
+// @Param end_date query string false "结束日期（格式：YYYY-MM-DD）"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} object{scan_history=[]service.UserScanHistoryItem, total=int64}
+// @Failure 400 {object} security.ErrorResponse
+// @Failure 404 {object} security.ErrorResponse
+// @Failure 500 {object} security.ErrorResponse
+// @Router /users/scan-history [get]
+func (h *UserProfileHandler) GetUserScanHistory(c *gin.Context) {
+	var input service.GetUserScanHistoryInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "无效的查询参数: " + err.Error()})
+		return
+	}
+
+	if input.UserUnionID == "" {
+		security.SendEncryptedResponse(c, http.StatusBadRequest, security.ErrorResponse{Error: "用户ID不能为空"})
+		return
+	}
+
+	history, total, err := h.service.GetUserScanHistory(&input)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "用户不存在") {
+			status = http.StatusNotFound
+		}
+		security.SendEncryptedResponse(c, status, security.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	security.SendEncryptedResponse(c, http.StatusOK, gin.H{
+		"scan_history": history,
+		"total":        total,
+	})
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"app/internal/models"
 	"app/pkg/database"
@@ -364,4 +365,118 @@ func (s *StatsService) GetCouponStats(input *GetCouponStatsInput) (any, error) {
 	}
 
 	return result, nil
+}
+
+// GetPopularWifiInput 定义获取最受欢迎WIFI的输入参数
+type GetPopularWifiInput struct {
+	StoreID   *uint   `form:"store_id"`
+	StartDate *string `form:"start_date"` // 格式: YYYY-MM-DD
+	EndDate   *string `form:"end_date"`   // 格式: YYYY-MM-DD
+	Limit     int     `form:"limit"`      // 返回的记录数量
+}
+
+// WifiPopularityItem 表示WIFI受欢迎程度的数据项
+type WifiPopularityItem struct {
+	WifiID       uint    `json:"wifi_id"`
+	WifiSSID     string  `json:"wifi_ssid"`
+	StoreID      uint    `json:"store_id"`
+	StoreName    string  `json:"store_name"`
+	ConnectCount int64   `json:"connect_count"` // 连接次数
+	SuccessRate  float64 `json:"success_rate"`  // 成功率
+}
+
+// GetPopularWifi 获取最受欢迎的WIFI配置
+func (s *StatsService) GetPopularWifi(input *GetPopularWifiInput) ([]WifiPopularityItem, error) {
+	limit := 10 // 默认返回10条记录
+	if input.Limit > 0 {
+		limit = input.Limit
+	}
+
+	// 构建查询
+	query := database.DB.Table("scan_log AS sl").
+		Select("w.wifi_id, w.wifi_ssid, w.store_id, s.name AS store_name, " +
+			"COUNT(*) AS connect_count, " +
+			"SUM(CASE WHEN sl.success_flag = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS success_rate").
+		Joins("LEFT JOIN wifi_config AS w ON sl.wifi_ssid = w.wifi_ssid").
+		Joins("LEFT JOIN store AS s ON w.store_id = s.store_id").
+		Group("w.wifi_id, w.wifi_ssid, w.store_id, s.name")
+
+	// 应用筛选条件
+	if input.StoreID != nil {
+		query = query.Where("w.store_id = ?", *input.StoreID)
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		query = query.Where("sl.scan_time >= ?", *input.StartDate)
+	}
+	if input.EndDate != nil && *input.EndDate != "" {
+		query = query.Where("sl.scan_time <= ?", *input.EndDate+" 23:59:59")
+	}
+
+	// 排序并限制结果数量
+	query = query.Order("connect_count DESC").Limit(limit)
+
+	// 执行查询
+	var results []WifiPopularityItem
+	if err := query.Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("查询最受欢迎WIFI失败: %w", err)
+	}
+
+	return results, nil
+}
+
+// GetScanTimeDistributionInput 定义获取扫码时段分布的输入参数
+type GetScanTimeDistributionInput struct {
+	StoreID   *uint   `form:"store_id"`
+	StartDate *string `form:"start_date"` // 格式: YYYY-MM-DD
+	EndDate   *string `form:"end_date"`   // 格式: YYYY-MM-DD
+}
+
+// HourlyDistribution 表示每小时的扫码分布
+type HourlyDistribution struct {
+	Hour         int   `json:"hour"`          // 小时 (0-23)
+	ScanCount    int64 `json:"scan_count"`    // 扫码次数
+	SuccessCount int64 `json:"success_count"` // 成功连接次数
+}
+
+// GetScanTimeDistribution 获取扫码时段分布统计
+func (s *StatsService) GetScanTimeDistribution(input *GetScanTimeDistributionInput) ([]HourlyDistribution, error) {
+	// 构建查询
+	query := database.DB.Table("scan_log AS sl").
+		Select("HOUR(sl.scan_time) AS hour, " +
+			"COUNT(*) AS scan_count, " +
+			"SUM(CASE WHEN sl.success_flag = 1 THEN 1 ELSE 0 END) AS success_count").
+		Group("HOUR(sl.scan_time)").
+		Order("hour")
+
+	// 应用筛选条件
+	if input.StoreID != nil {
+		query = query.Where("sl.store_id = ?", *input.StoreID)
+	}
+	if input.StartDate != nil && *input.StartDate != "" {
+		query = query.Where("sl.scan_time >= ?", *input.StartDate)
+	}
+	if input.EndDate != nil && *input.EndDate != "" {
+		query = query.Where("sl.scan_time <= ?", *input.EndDate+" 23:59:59")
+	}
+
+	// 执行查询
+	var results []HourlyDistribution
+	if err := query.Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("查询扫码时段分布失败: %w", err)
+	}
+
+	// 补全24小时的数据
+	completeResults := make([]HourlyDistribution, 24)
+	for i := 0; i < 24; i++ {
+		completeResults[i] = HourlyDistribution{Hour: i, ScanCount: 0, SuccessCount: 0}
+	}
+
+	// 填充查询结果
+	for _, item := range results {
+		if item.Hour >= 0 && item.Hour < 24 {
+			completeResults[item.Hour] = item
+		}
+	}
+
+	return completeResults, nil
 }
