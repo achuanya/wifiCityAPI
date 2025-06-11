@@ -1,13 +1,13 @@
 package v1
 
 import (
+	"app/internal/service"
+	"app/pkg/security"
 	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/app/internal/service"
-	"github.com/gin-gonic/gin/app/pkg/security"
 	"gorm.io/gorm"
 )
 

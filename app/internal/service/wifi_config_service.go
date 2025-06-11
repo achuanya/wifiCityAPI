@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gin-gonic/gin/app/internal/models"
-	"github.com/gin-gonic/gin/app/pkg/database"
+	"app/internal/models"
+	"app/pkg/database"
+
 	"gorm.io/gorm"
 )
 

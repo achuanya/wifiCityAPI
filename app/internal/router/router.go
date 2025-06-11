@@ -1,9 +1,10 @@
 package router
 
 import (
+	v1 "app/internal/api/v1"
+	"app/pkg/security"
+
 	"github.com/gin-gonic/gin"
-	v1 "github.com/gin-gonic/gin/app/internal/api/v1"
-	"github.com/gin-gonic/gin/app/pkg/security"
 )
 
 // SetupRouter 配置并返回一个 Gin 引擎

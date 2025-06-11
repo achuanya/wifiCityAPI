@@ -1,12 +1,11 @@
 package main
 
 import (
+	"app/config"
+	"app/internal/router"
+	"app/pkg/database"
 	"fmt"
 	"log"
-
-	"github.com/gin-gonic/gin/app/config"
-	"github.com/gin-gonic/gin/app/internal/router"
-	"github.com/gin-gonic/gin/app/pkg/database"
 )
 
 func main() {

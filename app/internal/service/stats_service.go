@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 
+	"app/internal/models"
+	"app/pkg/database"
+
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/app/internal/models"
-	"github.com/gin-gonic/gin/app/pkg/database"
 )
 
 // StatsService 提供了数据统计相关的业务逻辑

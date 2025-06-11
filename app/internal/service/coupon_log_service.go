@@ -1,13 +1,13 @@
 package service
 
 import (
+	"app/internal/models"
+	"app/pkg/database"
 	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/gin-gonic/gin/app/internal/models"
-	"github.com/gin-gonic/gin/app/pkg/database"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

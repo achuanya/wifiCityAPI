@@ -1,11 +1,11 @@
 package v1
 
 import (
+	"app/internal/service"
+	"app/pkg/security"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/app/internal/service"
-	"github.com/gin-gonic/gin/app/pkg/security"
 )
 
 // CouponLogHandler 负责处理优惠券日志相关的API请求
