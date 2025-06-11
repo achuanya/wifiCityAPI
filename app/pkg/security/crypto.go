@@ -65,7 +65,7 @@ func Decrypt(encryptedData *EncryptedData, key []byte) ([]byte, error) {
 
 	nonce, err := base64.StdEncoding.DecodeString(encryptedData.IV)
 	if err != nil {
-		return nil, fmt.Errorf("IV 解码失败: %w", err)
+		return nil, fmt.Errorf("iV 解码失败: %w", err)
 	}
 	if len(nonce) != gcm.NonceSize() {
 		return nil, fmt.Errorf("无效的 IV 长度")
@@ -73,7 +73,7 @@ func Decrypt(encryptedData *EncryptedData, key []byte) ([]byte, error) {
 
 	tag, err := base64.StdEncoding.DecodeString(encryptedData.Tag)
 	if err != nil {
-		return nil, fmt.Errorf("Tag 解码失败: %w", err)
+		return nil, fmt.Errorf("tag 解码失败: %w", err)
 	}
 
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedData.Data)
@@ -81,7 +81,7 @@ func Decrypt(encryptedData *EncryptedData, key []byte) ([]byte, error) {
 		return nil, fmt.Errorf("密文解码失败: %w", err)
 	}
 
-	// 将密文和tag合并回gcm.Open需要的格式
+	// 将密文和tag合并回gcm Open需要的格式
 	fullCiphertext := append(ciphertext, tag...)
 
 	plaintext, err := gcm.Open(nil, nonce, fullCiphertext, nil)
