@@ -67,7 +67,7 @@ func init() {
 	}
 
 	// 加载配置文件
-	if err := LoadConfig("wifiCityAPI/config/config.yaml"); err != nil {
+	if err := LoadConfig("app/config/config.yaml"); err != nil {
 		log.Fatalf("无法加载配置文件: %v", err)
 	}
 }
